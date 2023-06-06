@@ -1,0 +1,41 @@
+
+FROM --platform=$TARGETPLATFORM hub.easystack.cn/cni-devops/cilium-builder:based-681863ee34 as cilium-builder
+ARG GOPROXY
+ENV GOPROXY $GOPROXY
+ARG CILIUM_SHA=""
+LABEL cilium-sha=${CILIUM_SHA}
+LABEL maintainer="maintainer@cilium.io"
+WORKDIR /go/src/github.com/cilium
+###################自动下载代码，我用的gitee,后期改为COPY
+#RUN rm -rf cilium
+#ENV GIT_TAG=v1.13.2
+#ENV GIT_COMMIT=8cb94c70f7105f29a69e754d2b8969117e681775
+#RUN git clone -b $GIT_TAG --depth 1 https://gitee.com/lyxlyforever/cilium.git && \
+#    cd cilium && \
+#    [ "`git rev-parse HEAD`" = "${GIT_COMMIT}" ]
+# First, Do not apply the patch
+#COPY policy/cilium /cilium_patch
+#RUN cd cilium && git apply /cilium_patch/*.patch
+COPY cilium cilium
+###################
+ARG NOSTRIP
+ARG LOCKDEBUG
+ARG V
+ARG LIBNETWORK_PLUGIN
+#
+# Please do not add any dependency updates before the 'make install' here,
+# as that will mess with caching for incremental builds!
+#
+RUN cd cilium && make NOSTRIP=$NOSTRIP LOCKDEBUG=$LOCKDEBUG PKG_BUILD=1 V=$V LIBNETWORK_PLUGIN=$LIBNETWORK_PLUGIN \
+    SKIP_DOCS=true DESTDIR=/tmp/install clean-container build-container install-container
+RUN cp /tmp/install/opt/cni/bin/cilium-cni /tmp/install/usr/bin/
+
+RUN cd /go/src/github.com/cilium/cilium/operator && make cilium-operator-generic \
+    && mv cilium-operator-generic /tmp/install/usr/bin/
+
+FROM scratch
+#COPY --from=felix-builder /go/src/github.com/projectcalico/calico/bin/calico-felix /bin/calico-felix
+COPY --from=cilium-builder /tmp/install/ /tmp/install/
+
+
+
