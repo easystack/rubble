@@ -106,7 +106,7 @@ metadata:
   name: eni-config
   namespace: kube-system
 data:
-  eni_conf: |
+  rubble.json: |
     {
       "service_cidr": "10.222.0.0/16",
       "net_id": "network_ecns2",
@@ -118,7 +118,7 @@ data:
       "node_name": "node-2",
       "period": 30
     }
-  10-terway.conf: |
+  10-rubble.conf: |
     {
         "cniVersion": "0.3.1",
         "name": "rubble",
