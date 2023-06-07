@@ -51,7 +51,6 @@
     
 	extra_args=""
 	#IN_CLUSTER_LOADBALANCE="true" # 0005-add-flag-to-control-in-cluster-loadBalance.patch do not merge
-	ENABLE_POLICY="default"
 	
 	#if [ "$IN_CLUSTER_LOADBALANCE" = "true" ]; then
 	#		extra_args="${extra_args} --enable-in-cluster-loadbalance=true "
