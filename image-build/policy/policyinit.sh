@@ -1,4 +1,6 @@
 #!/bin/bash
+
+set -x
 #export DATASTORE_TYPE=kubernetes
 #if [ "$DATASTORE_TYPE" = "kubernetes" ]; then
 #    if [ -z "$KUBERNETES_SERVICE_HOST" ]; then
@@ -60,7 +62,7 @@
 	if bpftool -j feature probe | grep bpf_skb_ecn_set_ce ; then
 			extra_args="${extra_args} --enable-bandwidth-manager=true "
 	fi
-
+    cilium preflight register-crd --k8s-kubeconfig-path /root/.kube/config
     echo "using cilium as network routing & policy"
     # shellcheck disable=SC2086
     exec cilium-agent --tunnel=disabled --enable-ipv4-masquerade=false --enable-ipv6-masquerade=false \
@@ -68,8 +70,11 @@
          --agent-health-port=9099 --disable-envoy-version-check=true \
          --enable-local-node-route=false --ipv4-range=auto --enable-endpoint-health-checking=false \
          --enable-health-checking=false --enable-service-topology=true --disable-cnp-status-updates=true --k8s-heartbeat-timeout=0 --enable-session-affinity=true \
-         --install-iptables-rules=false --enable-l7-proxy=false \
+         --install-iptables-rules=false --enable-l7-proxy=false --enable-identity-mark=true --k8s-kubeconfig-path=/root/.kube/config \
+         --kube-proxy-replacement=strict \
          --ipam=cluster-pool ${extra_args}
+# exec failed in init.sh, exec here
+sysctl -w net.ipv4.conf.eth0.rp_filter=0
 #  fi
 #fi
 #  # shellcheck disable=SC1091

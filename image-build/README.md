@@ -16,7 +16,7 @@ docker buildx build -t rubble:policy-`date "+%Y%m%d"` \
 ```
 ## build Dockerfile
 ```bash
-docker buildx build -t rubble:all-`date "+%Y%m%d"` \
+docker buildx build -t hub.easystack.cn/cni-devops/rubble:all-`date "+%Y%m%d"` \
 --build-arg TARGETPLATFORM="linux/amd64" \
 --build-arg BUILDPLATFORM="linux/amd64" \
 --build-arg GOPROXY="https://goproxy.cn,direct" \

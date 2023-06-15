@@ -103,14 +103,14 @@ subjects:
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: eni-config
+  name: kube-rubble-config
   namespace: kube-system
 data:
   rubble.json: |
     {
       "service_cidr": "10.222.0.0/16",
-      "net_id": "network_ecns2",
-      "subnet_id": "network_rD1ygN_default_ipv4_subnet",
+      "net_id": "share_net",
+      "subnet_id": "share_net__subnet",
       "max_pool_size": 30,
       "min_pool_size": 0,
       "max_idle_size": 10,
@@ -124,7 +124,7 @@ data:
         "name": "rubble",
         "type": "rubble",
         "ipMasq": true,
-        "master": "ens7"
+        "master": "ens3"
     }
   disable_network_policy: "false"
   os_auth_url: "http://keystone.openstack.svc.cluster.local/v2.0"
@@ -139,16 +139,16 @@ data:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: terway
+  name: rubble
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: terway
+      app: rubble
   template:
     metadata:
       labels:
-        app: terway
+        app: rubble
       annotations:
         priorityClassName: ''
     spec:
@@ -158,19 +158,19 @@ spec:
       tolerations:
         - operator: "Exists"
       terminationGracePeriodSeconds: 0
-      serviceAccountName: terway
+      serviceAccountName: rubble
       hostNetwork: true
       initContainers:
-        - name: terway-init
-          image: rubble:all-20230530
+        - name: rubble-init
+          image: hub.easystack.cn/cni-devops/rubble:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
           command:
             - '/bin/init.sh'
           volumeMounts:
-            - name: configvolume
-              mountPath: /etc/eni
+            - name: rubble-config
+              mountPath: /etc/kube-rubble/
             - name: cni-bin
               mountPath: /opt/cni/bin/
             - name: cni
@@ -180,10 +180,10 @@ spec:
             - mountPath: /host
               name: host-root
       containers:
-        - name: terway
-          image: registry.cn-hangzhou.aliyuncs.com/acs/terway:v1.2.3
+        - name: rubble-daemon
+          image: hub.easystack.cn/cni-devops/rubble:latest
           imagePullPolicy: IfNotPresent
-          command: [ '/usr/bin/rubble', --kube-config=/etc/kubernetes/admin.conf' ]
+          command: [ '/usr/bin/rubble-daemon', '--kube-config=/root/.kube/config' ]
           securityContext:
             privileged: true
           env:
@@ -195,23 +195,55 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: OS_AUTH_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_auth_url
+            - name: OS_DOMAIN_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_domain_name
+            - name: OS_PROJECT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_project_name
+            - name: OS_USER_DOMAIN_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_user_domain_name
+            - name: OS_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_username
+            - name: OS_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: kube-rubble-config
+                  key: os_password                  
           volumeMounts:
-            - name: configvolume
-              mountPath: /etc/eni
+            - name: daemonconfig
+              mountPath: /etc/cni/rubble/
+            - name: rubble-config
+              mountPath: /etc/kube-rubble/
             - mountPath: /var/run/
-              name: eni-run
-            - mountPath: /opt/cni/bin/
-              name: cni-bin
+              name: rubble-run
             - mountPath: /lib/modules
               name: lib-modules
             - mountPath: /var/lib/cni/networks
               name: cni-networks
-            - mountPath: /var/lib/cni/terway
-              name: cni-terway
+            - mountPath: /var/lib/cni/rubble
+              name: cni-rubble
             - mountPath: /var/lib/kubelet/device-plugins
               name: device-plugin-path
+            - mountPath: /root/.kube/config
+              name: kubeconfig
         - name: policy
-          image: rubble:all-20230530
+          image: hub.easystack.cn/cni-devops/rubble:latest
           imagePullPolicy: IfNotPresent
           command: [ "/bin/policyinit.sh" ]
           env:
@@ -222,7 +254,7 @@ spec:
             - name: DISABLE_POLICY
               valueFrom:
                 configMapKeyRef:
-                  name: eni-config
+                  name: kube-rubble-config
                   key: disable_network_policy
                   optional: true
             - name: K8S_NODE_NAME
@@ -236,37 +268,9 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.namespace
             - name: CILIUM_CNI_CHAINING_MODE
-              value: terway-chainer
-            - name: OS_AUTH_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_auth_url
-            - name: OS_DOMAIN_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_domain_name
-            - name: OS_PROJECT_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_project_name
-            - name: OS_USER_DOMAIN_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_user_domain_name
-            - name: OS_USERNAME
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_username
-            - name: OS_PASSWORD
-              valueFrom:
-                configMapKeyRef:
-                  name: eni-config
-                  key: os_password
+              value: rubble-chainer
+            - name: KUBECONFIG_PATH_FILE
+              value: "/root/.kube/config"
           securityContext:
             privileged: true
           resources:
@@ -289,29 +293,31 @@ spec:
               name: lib-modules
             - mountPath: /etc/cni/net.d
               name: cni
-            - mountPath: /etc/eni
-              name: configvolume
+            - name: rubble-config
+              mountPath: /etc/kube-rubble/              
             # volumes use by cilium
             - mountPath: /sys/fs/bpf
               name: bpf-maps
             - mountPath: /var/run/cilium
               name: cilium-run
-            - mountPath: /host/opt/cni/bin
-              name: cni-bin
-            - mountPath: /host/etc/cni/net.d
-              name: cni
               # Needed to be able to load kernel modules
             - mountPath: /run/xtables.lock
               name: xtables-lock
+            - mountPath: /root/.kube/config
+              name: kubeconfig              
       volumes:
-        - name: configvolume
+        - name: daemonconfig
           configMap:
-            name: eni-config
+            name: kube-rubble-config
             items:
-              - key: eni_conf
-                path: eni.json
-              - key: 10-terway.conf
-                path: 10-terway.conf
+              - key: rubble.json
+                path: rubble.json
+        - name: rubble-config
+          configMap:
+            name: kube-rubble-config
+            items:
+              - key: 10-rubble.conf
+                path: 10-rubble.conf
         - name: cni-bin
           hostPath:
             path: /opt/cni/bin
@@ -319,19 +325,21 @@ spec:
         - name: cni
           hostPath:
             path: /etc/cni/net.d
-        - name: eni-run
+            type: "Directory"
+        - name: rubble-run
           hostPath:
             path: /var/run/
             type: "Directory"
         - name: lib-modules
           hostPath:
             path: /lib/modules
+            type: "Directory"
         - name: cni-networks
           hostPath:
             path: /var/lib/cni/networks
-        - name: cni-terway
+        - name: cni-rubble
           hostPath:
-            path: /var/lib/cni/terway
+            path: /var/lib/cni/rubble
         - name: device-plugin-path
           hostPath:
             path: /var/lib/kubelet/device-plugins
@@ -356,3 +364,7 @@ spec:
             path: /run/xtables.lock
             type: FileOrCreate
           name: xtables-lock
+        - hostPath:
+             path: /root/.kube/config
+             type: File
+          name: kubeconfig

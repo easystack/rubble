@@ -1,9 +1,5 @@
-修改terway/init.sh
-
-
-
-#!/bin/sh
-
+#!/bin/bash
+set -x
 init_node_bpf() {
   nsenter -t 1 -m -- bash -c '
   mount | grep "/sys/fs/bpf type bpf" || {
@@ -24,14 +20,16 @@ init_node_bpf() {
   echo "Node initialization complete"
 }'
 }
+
 set -o errexit
 set -o nounset
 
 # install CNIs
 cp -f /usr/bin/rubble /opt/cni/bin/
-cp -f /usr/bin/cilium-cni /opt/cni/bin/
 chmod +x /opt/cni/bin/rubble
+cp -f /usr/bin/cilium-cni /opt/cni/bin/
 chmod +x /opt/cni/bin/cilium-cni
+chmod +x /bin/policyinit.sh
 
 #ENIIP_VIRTUAL_TYPE=$(jq .eniip_virtual_type? -r < /etc/eni/10-terway.conf | tr '[:upper:]' '[:lower:]')
 ENIIP_VIRTUAL_TYPE="ipvlan"
@@ -70,6 +68,7 @@ if [ "$ENIIP_VIRTUAL_TYPE" = "ipvlan" ]; then
 #
 #  rm -f /etc/cni/net.d/10-terway.conf || true
 #  
+    cp /etc/kube-rubble/10-rubble.conf /etc/cni/net.d/10-rubble.conf
   else
     echo "Linux kernel version <= 4.19, skipping cilium config"
 #    cp /etc/eni/10-terway.conf /etc/cni/net.d/
@@ -79,7 +78,7 @@ if [ "$ENIIP_VIRTUAL_TYPE" = "ipvlan" ]; then
 #  cp /etc/eni/10-terway.conf /etc/cni/net.d/
 fi
 
-sysctl -w net.ipv4.conf.eth0.rp_filter=0
+# sysctl -w net.ipv4.conf.eth0.rp_filter=0 # sysctl: cannot stat /proc/sys/net/ipv4/conf/eth0/rp_filter: No such file or directory
 modprobe sch_htb || true
-chroot /host sh -c "ls -l /etc/udev/rules.d/; ls -l /lib/udev/rules.d/; ls -l /lib/udev/;systemctl disable eni.service; rm -f /etc/udev/rules.d/75-persistent-net-generator.rules /lib/udev/rules.d/60-net.rules /lib/udev/rules.d/61-eni.rules /lib/udev/write_net_rules && udevadm control --reload-rules && udevadm trigger"
+chroot /host sh -c "ls -l /etc/udev/rules.d/; ls -l /lib/udev/rules.d/; ls -l /lib/udev/; rm -f /etc/udev/rules.d/75-persistent-net-generator.rules /lib/udev/rules.d/60-net.rules /lib/udev/rules.d/61-eni.rules /lib/udev/write_net_rules && udevadm control --reload-rules && udevadm trigger" 
 
