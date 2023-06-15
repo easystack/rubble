@@ -1,11 +1,11 @@
 # 该镜像就是前面的cilium 适配rubble的build镜像
 # ARG TERWAY_POLICY_IMAGE=registry.cn-hongkong.aliyuncs.com/acs/terway:policy-20230413-b0c060f3@sha256:757b30a70fe3aed011ab247107eb177a061cfffa00ce453bcf800c4b69a987d9
-ARG RUBBLE_POLICY_IMAGE=rubble:policy-20230606
+ARG RUBBLE_POLICY_IMAGE=rubble:policy-20230614
 
 ARG UBUNTU_IMAGE=docker.io/library/ubuntu:20.04@sha256:b33325a00c7c27b23ae48cf17d2c654e2c30812b35e7846c006389318f6a71c2
-ARG CILIUM_LLVM_IMAGE=quay.io/cilium/cilium-llvm:a8c542efc076b62ba683e7699c0013adb6955f0f@sha256:38e8941107bd19eb30bdde6e478760a22325f38d1f2771dfd1b9af81d74235e7
-ARG CILIUM_BPFTOOL_IMAGE=quay.io/cilium/cilium-bpftool:d3093f6aeefef8270306011109be623a7e80ad1b@sha256:2c28c64195dee20ab596d70a59a4597a11058333c6b35a99da32c339dcd7df56
-ARG CILIUM_IPROUTE2_IMAGE=quay.io/cilium/cilium-iproute2:f882e3fd516184703eea5ee9b3b915748b5d4ee8@sha256:f22b8aaf01952cf4b2ec959f0b8f4d242b95ce279480fbd73fded606ce0c3fa4
+ARG CILIUM_LLVM_IMAGE=quay.io/cilium/cilium-llvm:547db7ec9a750b8f888a506709adb41f135b952e@sha256:4d6fa0aede3556c5fb5a9c71bc6b9585475ac9b1064f516d4c45c8fb691c9d9e
+ARG CILIUM_BPFTOOL_IMAGE=quay.io/cilium/cilium-bpftool:78448c1a37ff2b790d5e25c3d8b8ec3e96e6405f@sha256:99a9453a921a8de99899ef82e0822f0c03f65d97005c064e231c06247ad8597d
+ARG CILIUM_IPROUTE2_IMAGE=quay.io/cilium/cilium-iproute2:3570d58349efb2d6b0342369a836998c93afd291@sha256:1abcd7a5d2117190ab2690a163ee9cd135bc9e4cf8a4df662a8f993044c79342
 ARG CILIUM_IPTABLES_IMAGE=quay.io/cilium/iptables-20.04:e6f83206c57e606282056903ffd3aab0183bdaed@sha256:7ce0de449d356a5259021dc13f2b00a8bddfbea57a1c91ff8f146d455cace9e5
 
 FROM --platform=$TARGETPLATFORM ${RUBBLE_POLICY_IMAGE} as policy-dist
@@ -54,8 +54,7 @@ COPY rubble/image-build/policy/policyinit.sh /bin/
 COPY rubble/image-build/policy/init.sh /bin/
 
 COPY --from=policy-dist /tmp/install/ /
-COPY --from=builder /go/src/github.com/rubble/rubble-daemon /usr/bin/
-COPY --from=builder /go/src/github.com/rubble/rubble       /opt/cni/bin/
+COPY --from=builder /go/src/github.com/rubble/rubble-daemon /go/src/github.com/rubble/rubble /usr/bin/
 COPY --from=builder /go/src/github.com/rubble/image-build/iptables-wrapper-installer.sh /iptables-wrapper-installer.sh
 RUN /iptables-wrapper-installer.sh --no-sanity-check
 # 运行rubble
