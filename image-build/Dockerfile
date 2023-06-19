@@ -48,10 +48,10 @@ COPY --from=iproute2-dist /usr/lib/libbpf* /usr/lib/
 COPY --from=iptables-dist /iptables /iptables
 RUN dpkg -i /iptables/*\.deb && rm -rf /iptables
 
-# 引导cilium的脚本
-COPY rubble/image-build/policy/policyinit.sh /bin/
+# 引导cilium的脚本->configmap
+# COPY rubble/image-build/policy/policyinit.sh /bin/
 #COPY policy/uninstall_policy.sh /bin/
-COPY rubble/image-build/policy/init.sh /bin/
+#COPY rubble/image-build/policy/init.sh /bin/
 
 COPY --from=policy-dist /tmp/install/ /
 COPY --from=builder /go/src/github.com/rubble/rubble-daemon /go/src/github.com/rubble/rubble /usr/bin/
